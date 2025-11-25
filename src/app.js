@@ -5,6 +5,7 @@ const path = require('path');
 const oauthRoutes = require('./routes/oauth');
 const webhookRoutes = require('./routes/webhook');
 const crmCardRoutes = require('./routes/crmCard');
+const analysisRoutes = require('./routes/analysis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,18 +24,32 @@ app.get('/health', (req, res) => {
 app.use('/oauth', oauthRoutes);
 app.use('/webhooks', webhookRoutes);
 app.use('/crm-card', crmCardRoutes);
+app.use('/api/analysis', analysisRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
     app: 'HubSpot Multi-Threading Score App',
-    version: '1.0.0',
-    description: 'Calculates stakeholder coverage scores for deals',
+    version: '2.0.0',
+    description: 'Calculates stakeholder coverage scores for deals with advanced analytics',
+    features: [
+      'AI-based role inference from job titles',
+      'Coverage breadth vs depth analysis',
+      'Stakeholder lifecycle tracking',
+      'Champion reliability scoring',
+      'Risk prediction with ML patterns',
+      'Custom workflow actions',
+      'Deal stage-specific thresholds',
+      'Real-time threading alerts',
+      'Inline playbooks and templates',
+      'Exportable deal health reports'
+    ],
     endpoints: {
       health: '/health',
       oauth: '/oauth',
       webhooks: '/webhooks',
-      crmCard: '/crm-card'
+      crmCard: '/crm-card',
+      analysis: '/api/analysis'
     }
   });
 });
