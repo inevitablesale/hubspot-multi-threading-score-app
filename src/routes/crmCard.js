@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const HubSpotService = require('../services/hubspotService');
 const { calculateMultiThreadingScore, generateRecommendations } = require('../services/scoringService');
+const { calculateCoverageAnalysis, generateMissingChecklist, calculateChampionStrength } = require('../services/coverageAnalysisService');
+const { predictDealRisk } = require('../services/riskPredictionService');
+const { getContextualRecommendations } = require('../services/playbookService');
 const oauthRoutes = require('./oauth');
 
 /**
@@ -54,14 +57,37 @@ router.get('/deal', async (req, res) => {
     // Get deal data with contacts
     const dealData = await hubspotService.getDealWithContacts(hs_object_id);
     
-    // Calculate multi-threading score
-    const scoreData = calculateMultiThreadingScore(dealData);
+    // Calculate multi-threading score with role inference enabled
+    const scoreData = calculateMultiThreadingScore(dealData, { enableRoleInference: true });
     
     // Generate recommendations
     const recommendations = generateRecommendations(scoreData);
     
+    // Calculate coverage analysis (breadth vs depth)
+    const coverageAnalysis = calculateCoverageAnalysis(
+      dealData.contacts || [],
+      { dealStage: dealData.deal?.dealstage }
+    );
+    
+    // Generate missing checklist
+    const missingChecklist = generateMissingChecklist(coverageAnalysis);
+    
+    // Get risk prediction
+    const riskPrediction = predictDealRisk(dealData, scoreData, {});
+    
+    // Get contextual playbook recommendations
+    const playbookRecs = getContextualRecommendations(scoreData, dealData.deal?.dealstage);
+    
     // Format response for HubSpot CRM Card
-    const cardResponse = formatCrmCardResponse(scoreData, recommendations, dealData.dealId);
+    const cardResponse = formatCrmCardResponse(
+      scoreData, 
+      recommendations, 
+      dealData.dealId, 
+      coverageAnalysis,
+      missingChecklist,
+      riskPrediction,
+      playbookRecs
+    );
     
     res.json(cardResponse);
   } catch (error) {
@@ -83,7 +109,7 @@ router.get('/deal', async (req, res) => {
 /**
  * Format score data into HubSpot CRM Card response format
  */
-function formatCrmCardResponse(scoreData, recommendations, dealId) {
+function formatCrmCardResponse(scoreData, recommendations, dealId, coverageAnalysis = null, missingChecklist = null, riskPrediction = null, playbookRecs = null) {
   const results = [];
   
   // Main score card
@@ -117,27 +143,43 @@ function formatCrmCardResponse(scoreData, recommendations, dealId) {
     ]
   });
   
-  // Score breakdown card
+  // Score breakdown card with breadth/depth
+  const breakdownProperties = [
+    {
+      label: 'Engagement Score',
+      dataType: 'NUMERIC',
+      value: scoreData.engagementScore
+    },
+    {
+      label: 'Participation Score',
+      dataType: 'NUMERIC',
+      value: scoreData.participationScore
+    },
+    {
+      label: 'Role Coverage Score',
+      dataType: 'NUMERIC',
+      value: scoreData.roleCoverageScore
+    }
+  ];
+  
+  // Add breadth/depth if available
+  if (coverageAnalysis) {
+    breakdownProperties.push({
+      label: 'Breadth Score',
+      dataType: 'NUMERIC',
+      value: coverageAnalysis.breadth?.breadthScore || 0
+    });
+    breakdownProperties.push({
+      label: 'Depth Score',
+      dataType: 'NUMERIC',
+      value: coverageAnalysis.depth?.overallDepthScore || 0
+    });
+  }
+  
   results.push({
     objectId: 2,
     title: 'Score Breakdown',
-    properties: [
-      {
-        label: 'Engagement Score',
-        dataType: 'NUMERIC',
-        value: scoreData.engagementScore
-      },
-      {
-        label: 'Participation Score',
-        dataType: 'NUMERIC',
-        value: scoreData.participationScore
-      },
-      {
-        label: 'Role Coverage Score',
-        dataType: 'NUMERIC',
-        value: scoreData.roleCoverageScore
-      }
-    ]
+    properties: breakdownProperties
   });
   
   // Role coverage card
@@ -179,7 +221,7 @@ function formatCrmCardResponse(scoreData, recommendations, dealId) {
     });
   }
   
-  // Contact engagement summary (top 5 contacts)
+  // Contact engagement summary (top 5 contacts) with effective roles
   if (scoreData.contacts.length > 0) {
     const topContacts = scoreData.contacts
       .sort((a, b) => b.engagementScore - a.engagementScore)
@@ -188,11 +230,54 @@ function formatCrmCardResponse(scoreData, recommendations, dealId) {
     results.push({
       objectId: 5,
       title: 'Contact Engagement',
-      properties: topContacts.map(contact => ({
-        label: contact.name || contact.email,
+      properties: topContacts.map(contact => {
+        const roleDisplay = contact.effectiveRole || contact.role;
+        const roleIndicator = contact.roleSource === 'inferred' ? ' (inferred)' : '';
+        return {
+          label: contact.name || contact.email,
+          dataType: 'STRING',
+          value: `${roleDisplay}${roleIndicator} - Score: ${contact.engagementScore}/100 (${contact.engagements.total} interactions)`
+        };
+      })
+    });
+  }
+  
+  // What's Missing checklist card
+  if (missingChecklist && missingChecklist.length > 0) {
+    const topChecklist = missingChecklist.slice(0, 4);
+    results.push({
+      objectId: 6,
+      title: "What's Missing?",
+      properties: topChecklist.map(item => ({
+        label: item.status === 'MISSING' ? '❌' : '⚠️',
         dataType: 'STRING',
-        value: `${contact.role} - Score: ${contact.engagementScore}/100 (${contact.engagements.total} interactions)`
+        value: item.title
       }))
+    });
+  }
+  
+  // Risk Prediction card
+  if (riskPrediction && riskPrediction.overallRiskLevel !== 'HEALTHY') {
+    const riskProperties = [{
+      label: 'Risk Prediction',
+      dataType: 'STATUS',
+      value: riskPrediction.overallRiskLevel,
+      optionType: riskPrediction.overallRiskLevel === 'LOW' ? 'SUCCESS' : 
+                  riskPrediction.overallRiskLevel === 'MEDIUM' ? 'WARNING' : 'DANGER'
+    }];
+    
+    if (riskPrediction.priorityActions?.length > 0) {
+      riskProperties.push({
+        label: 'Top Action',
+        dataType: 'STRING',
+        value: riskPrediction.priorityActions[0].action
+      });
+    }
+    
+    results.push({
+      objectId: 7,
+      title: 'Risk Analysis',
+      properties: riskProperties
     });
   }
   

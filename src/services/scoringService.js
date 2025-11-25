@@ -6,7 +6,11 @@
  * 2. Participation Frequency Score - How often do stakeholders participate
  * 3. Buying Role Coverage Score - Are key decision-makers involved
  * 4. Overall Multi-Threading Score - Combined stakeholder coverage assessment
+ * 5. Role Inference - AI-based role inference from job titles and behavior
+ * 6. Breadth vs Depth Analysis - Coverage depth and breadth metrics
  */
+
+const { inferContactRole } = require('./roleInferenceService');
 
 // Buying roles and their importance weights
 const BUYING_ROLE_WEIGHTS = {
@@ -16,6 +20,8 @@ const BUYING_ROLE_WEIGHTS = {
   'INFLUENCER': 15,
   'END_USER': 10,
   'BLOCKER': 5,
+  'LEGAL': 15,
+  'PROCUREMENT': 10,
   'OTHER': 5
 };
 
@@ -99,28 +105,58 @@ function calculateRoleCoverageScore(contacts) {
 /**
  * Calculate overall multi-threading score
  * @param {Object} data - Deal data with contacts
+ * @param {Object} options - Additional options including role inference settings
  * @returns {Object} Comprehensive score breakdown
  */
-function calculateMultiThreadingScore(data) {
+function calculateMultiThreadingScore(data, options = {}) {
   const { contacts = [] } = data;
+  const { enableRoleInference = true, inferenceOptions = {} } = options;
   
-  // Calculate individual scores
-  const contactEngagementScores = contacts.map(contact => ({
-    contactId: contact.id,
-    name: `${contact.properties?.firstname || ''} ${contact.properties?.lastname || ''}`.trim() || 'Unknown',
-    email: contact.properties?.email || 'N/A',
-    role: contact.properties?.hs_buying_role || 'Not specified',
-    jobTitle: contact.properties?.jobtitle || 'Not specified',
-    engagementScore: calculateContactEngagementScore(contact.engagements || {}),
-    engagements: contact.engagements || { emails: 0, meetings: 0, calls: 0, total: 0 }
-  }));
+  // Calculate individual scores with role inference
+  const contactEngagementScores = contacts.map(contact => {
+    // Infer role if not explicitly set or if inference is enabled
+    let effectiveRole = contact.properties?.hs_buying_role || 'Not specified';
+    let roleInference = null;
+    let roleConfidence = 100;
+    let roleSource = 'explicit';
+    
+    if (enableRoleInference && (!effectiveRole || effectiveRole === 'Not specified' || effectiveRole === 'OTHER')) {
+      roleInference = inferContactRole(contact, inferenceOptions);
+      effectiveRole = roleInference.role || 'OTHER';
+      roleConfidence = roleInference.confidence;
+      roleSource = roleInference.source;
+    }
+    
+    return {
+      contactId: contact.id,
+      name: `${contact.properties?.firstname || ''} ${contact.properties?.lastname || ''}`.trim() || 'Unknown',
+      email: contact.properties?.email || 'N/A',
+      role: contact.properties?.hs_buying_role || 'Not specified',
+      effectiveRole: effectiveRole,
+      roleConfidence: roleConfidence,
+      roleSource: roleSource,
+      roleInference: roleInference,
+      jobTitle: contact.properties?.jobtitle || 'Not specified',
+      engagementScore: calculateContactEngagementScore(contact.engagements || {}),
+      engagements: contact.engagements || { emails: 0, meetings: 0, calls: 0, total: 0 },
+      lastEngagementDate: contact.lastEngagementDate || null
+    };
+  });
   
   const avgEngagementScore = contactEngagementScores.length > 0
     ? Math.round(contactEngagementScores.reduce((sum, c) => sum + c.engagementScore, 0) / contactEngagementScores.length)
     : 0;
   
   const participationScore = calculateParticipationScore(contacts);
-  const roleCoverage = calculateRoleCoverageScore(contacts);
+  
+  // Use effective roles (inferred if available) for role coverage calculation
+  const contactsWithEffectiveRoles = contactEngagementScores.map(ces => ({
+    properties: {
+      hs_buying_role: ces.effectiveRole
+    },
+    engagements: ces.engagements
+  }));
+  const roleCoverage = calculateRoleCoverageScore(contactsWithEffectiveRoles);
   
   // Calculate thread depth (number of engaged stakeholders)
   const threadDepth = contacts.filter(c => (c.engagements?.total || 0) > 0).length;
@@ -152,6 +188,9 @@ function calculateMultiThreadingScore(data) {
     riskColor = '#f2545b'; // HubSpot red
   }
   
+  // Count contacts with inferred roles
+  const inferredRoleCount = contactEngagementScores.filter(c => c.roleSource === 'inferred').length;
+  
   return {
     overallScore,
     engagementScore: avgEngagementScore,
@@ -163,7 +202,12 @@ function calculateMultiThreadingScore(data) {
     riskColor,
     coveredRoles: roleCoverage.coveredRoles,
     missingKeyRoles: roleCoverage.missingKeyRoles,
-    contacts: contactEngagementScores
+    contacts: contactEngagementScores,
+    roleInferenceStats: {
+      totalContacts: contacts.length,
+      inferredRoles: inferredRoleCount,
+      explicitRoles: contacts.length - inferredRoleCount
+    }
   };
 }
 
