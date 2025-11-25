@@ -1,0 +1,40 @@
+{
+  "name": "hubspot-multi-threading-score-app",
+  "version": "1.0.0",
+  "description": "HubSpot App to calculate and surface multi-thread stakeholder coverage scores on deals",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/ tests/",
+    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\""
+  },
+  "keywords": [
+    "hubspot",
+    "crm",
+    "sales",
+    "multi-threading",
+    "stakeholder-coverage",
+    "deal-scoring"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hubspot/api-client": "^13.4.0",
+    "axios": "^1.12.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "prettier": "^3.6.2",
+    "supertest": "^7.1.4"
+  }
+}

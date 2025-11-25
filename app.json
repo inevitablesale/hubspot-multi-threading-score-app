@@ -1,0 +1,37 @@
+{
+  "name": "Multi-Threading Score",
+  "description": "Calculates stakeholder coverage scores for deals to help identify single-thread exposure and strengthen multi-stakeholder alignment.",
+  "uid": "multi-threading-score-app",
+  "scopes": [
+    "crm.objects.deals.read",
+    "crm.objects.deals.write",
+    "crm.objects.contacts.read",
+    "crm.objects.contacts.write"
+  ],
+  "public": true,
+  "extensions": {
+    "crm": {
+      "cards": [
+        {
+          "file": "MultiThreadingScoreCard.json"
+        }
+      ]
+    }
+  },
+  "webhooks": {
+    "subscriptions": [
+      {
+        "enabled": true,
+        "subscriptionType": "deal.creation"
+      },
+      {
+        "enabled": true,
+        "subscriptionType": "deal.propertyChange"
+      },
+      {
+        "enabled": true,
+        "subscriptionType": "deal.associationChange"
+      }
+    ]
+  }
+}

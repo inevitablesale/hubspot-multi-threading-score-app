@@ -1,0 +1,46 @@
+{
+  "type": "crm-card",
+  "data": {
+    "title": "Multi-Threading Score",
+    "uid": "multi-threading-score-card",
+    "location": "crm.record.sidebar",
+    "fetch": {
+      "targetUrl": "{{APP_BASE_URL}}/crm-card/deal",
+      "objectTypes": [
+        {
+          "name": "deal",
+          "propertiesToSend": [
+            "hs_object_id",
+            "dealname",
+            "amount",
+            "dealstage"
+          ]
+        }
+      ]
+    },
+    "display": {
+      "properties": [
+        {
+          "name": "multi_thread_score",
+          "label": "Multi-Threading Score",
+          "dataType": "NUMBER"
+        },
+        {
+          "name": "stakeholder_count",
+          "label": "Stakeholders",
+          "dataType": "NUMBER"
+        },
+        {
+          "name": "risk_level",
+          "label": "Risk Level",
+          "dataType": "STATUS"
+        }
+      ]
+    },
+    "actions": {
+      "baseUrls": [
+        "{{APP_BASE_URL}}"
+      ]
+    }
+  }
+}
