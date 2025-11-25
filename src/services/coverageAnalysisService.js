@@ -310,9 +310,23 @@ function trackStakeholderLifecycle(currentSnapshot, previousSnapshot = null) {
   const currentContacts = currentSnapshot.contacts || [];
   const previousContacts = previousSnapshot.contacts || [];
   
-  // Create maps for comparison
-  const currentMap = new Map(currentContacts.map(c => [c.contactId || c.id, c]));
-  const previousMap = new Map(previousContacts.map(c => [c.contactId || c.id, c]));
+  // Helper function to get unique contact identifier
+  const getContactId = (contact) => {
+    // Prefer contactId, then id, then email as fallback for uniqueness
+    return contact.contactId || contact.id || contact.email || null;
+  };
+  
+  // Create maps for comparison, filtering out contacts without valid IDs
+  const currentMap = new Map(
+    currentContacts
+      .filter(c => getContactId(c) !== null)
+      .map(c => [getContactId(c), c])
+  );
+  const previousMap = new Map(
+    previousContacts
+      .filter(c => getContactId(c) !== null)
+      .map(c => [getContactId(c), c])
+  );
   
   // Check for engagement changes per contact
   for (const [contactId, currentContact] of currentMap) {

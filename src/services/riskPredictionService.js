@@ -431,9 +431,16 @@ function predictDealRisk(dealData, scoreData, additionalData = {}) {
  */
 function analyzeStageVelocity(dealData) {
   const currentStage = dealData.deal?.dealstage || 'unknown';
-  const stageEnteredAt = dealData.deal?.hs_date_entered_currentstage 
-    ? new Date(dealData.deal.hs_date_entered_currentstage) 
-    : null;
+  
+  // Parse and validate the date
+  let stageEnteredAt = null;
+  if (dealData.deal?.hs_date_entered_currentstage) {
+    const parsedDate = new Date(dealData.deal.hs_date_entered_currentstage);
+    // Check if date is valid
+    if (!isNaN(parsedDate.getTime())) {
+      stageEnteredAt = parsedDate;
+    }
+  }
   
   if (!stageEnteredAt) {
     return {

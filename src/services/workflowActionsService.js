@@ -141,6 +141,12 @@ function handleStakeholderCountCheck(params, dealData) {
   };
 }
 
+// HubSpot association type IDs
+const ASSOCIATION_TYPE_IDS = {
+  TASK_TO_DEAL: 216,
+  TASK_TO_CONTACT: 214
+};
+
 /**
  * Generate task creation payload for HubSpot
  * @param {Object} params - Task parameters
@@ -185,7 +191,7 @@ function generateTaskPayload(params, dealData, scoreData) {
     associations: [
       {
         to: { id: dealData.dealId },
-        types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 216 }] // Task to Deal
+        types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: ASSOCIATION_TYPE_IDS.TASK_TO_DEAL }]
       }
     ],
     ownerId

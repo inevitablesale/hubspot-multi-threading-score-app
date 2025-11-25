@@ -8,6 +8,9 @@
  * 4. Meeting transcript analysis (future enhancement)
  */
 
+// Finance-related keywords pattern (used for special case role inference)
+const FINANCE_ROLE_PATTERN = /\b(cfo|financial|finance|budget|treasury|controller|procurement|purchasing)\b/i;
+
 // Job title patterns mapped to buying roles
 const JOB_TITLE_PATTERNS = {
   DECISION_MAKER: [
@@ -96,7 +99,7 @@ function inferRoleFromJobTitle(jobTitle) {
   }
 
   // Special case: Finance-related titles should be BUDGET_HOLDER even if they match DECISION_MAKER
-  const isFinanceRole = /\b(cfo|financial|finance|budget|treasury|controller|procurement|purchasing)\b/i.test(normalizedTitle);
+  const isFinanceRole = FINANCE_ROLE_PATTERN.test(normalizedTitle);
   const hasFinanceMatch = matches.find(m => m.role === 'BUDGET_HOLDER' || m.role === 'PROCUREMENT');
   
   if (isFinanceRole && hasFinanceMatch) {

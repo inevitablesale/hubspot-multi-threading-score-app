@@ -226,15 +226,19 @@ router.post('/report/coaching', async (req, res) => {
     const accessToken = await oauthRoutes.getAccessToken(portalId);
     const hubspotService = new HubSpotService(accessToken);
     
-    const deals = [];
-    for (const dealId of dealIds) {
-      try {
-        const dealData = await hubspotService.getDealWithContacts(dealId);
-        deals.push(dealData);
-      } catch (err) {
-        console.error(`Failed to fetch deal ${dealId}:`, err.message);
-      }
-    }
+    // Fetch deals in parallel for better performance
+    const dealPromises = dealIds.map(dealId => 
+      hubspotService.getDealWithContacts(dealId)
+        .catch(err => {
+          console.error(`Failed to fetch deal ${dealId}:`, err.message);
+          return null;
+        })
+    );
+    
+    const dealResults = await Promise.allSettled(dealPromises);
+    const deals = dealResults
+      .filter(result => result.status === 'fulfilled' && result.value !== null)
+      .map(result => result.value);
     
     const packet = generateCoachingPacket(deals, { repName, period });
     
@@ -255,15 +259,19 @@ router.post('/report/dashboard', async (req, res) => {
     const accessToken = await oauthRoutes.getAccessToken(portalId);
     const hubspotService = new HubSpotService(accessToken);
     
-    const deals = [];
-    for (const dealId of dealIds) {
-      try {
-        const dealData = await hubspotService.getDealWithContacts(dealId);
-        deals.push(dealData);
-      } catch (err) {
-        console.error(`Failed to fetch deal ${dealId}:`, err.message);
-      }
-    }
+    // Fetch deals in parallel for better performance
+    const dealPromises = dealIds.map(dealId => 
+      hubspotService.getDealWithContacts(dealId)
+        .catch(err => {
+          console.error(`Failed to fetch deal ${dealId}:`, err.message);
+          return null;
+        })
+    );
+    
+    const dealResults = await Promise.allSettled(dealPromises);
+    const deals = dealResults
+      .filter(result => result.status === 'fulfilled' && result.value !== null)
+      .map(result => result.value);
     
     const dashboard = generatePipelineDashboard(deals, { groupByStage });
     

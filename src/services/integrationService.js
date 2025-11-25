@@ -10,31 +10,40 @@
 
 const axios = require('axios');
 
+// Default timeout for API requests (30 seconds)
+const DEFAULT_REQUEST_TIMEOUT = 30000;
+
 // Integration configuration
 const INTEGRATION_CONFIGS = {
   GONG: {
     baseUrl: 'https://api.gong.io/v2',
-    scopes: ['calls:read', 'users:read']
+    scopes: ['calls:read', 'users:read'],
+    timeout: DEFAULT_REQUEST_TIMEOUT
   },
   CHORUS: {
     baseUrl: 'https://chorus.ai/api/v2',
-    scopes: ['calls:read', 'analytics:read']
+    scopes: ['calls:read', 'analytics:read'],
+    timeout: DEFAULT_REQUEST_TIMEOUT
   },
   FIREFLIES: {
     baseUrl: 'https://api.fireflies.ai/graphql',
-    scopes: ['transcripts:read', 'meetings:read']
+    scopes: ['transcripts:read', 'meetings:read'],
+    timeout: DEFAULT_REQUEST_TIMEOUT
   },
   LINKEDIN: {
     baseUrl: 'https://api.linkedin.com/v2',
-    scopes: ['r_organization_social', 'r_member_social']
+    scopes: ['r_organization_social', 'r_member_social'],
+    timeout: DEFAULT_REQUEST_TIMEOUT
   },
   SALESFORCE: {
     baseUrl: null, // Instance-specific
-    scopes: ['api', 'refresh_token']
+    scopes: ['api', 'refresh_token'],
+    timeout: DEFAULT_REQUEST_TIMEOUT
   },
   PIPEDRIVE: {
     baseUrl: 'https://api.pipedrive.com/v1',
-    scopes: ['deals:read', 'persons:read']
+    scopes: ['deals:read', 'persons:read'],
+    timeout: DEFAULT_REQUEST_TIMEOUT
   }
 };
 
@@ -47,6 +56,7 @@ class IntegrationClient {
     this.config = config;
     this.baseUrl = config.baseUrl || INTEGRATION_CONFIGS[integration]?.baseUrl;
     this.accessToken = config.accessToken;
+    this.timeout = config.timeout || INTEGRATION_CONFIGS[integration]?.timeout || DEFAULT_REQUEST_TIMEOUT;
   }
 
   async request(method, endpoint, data = null) {
@@ -58,6 +68,7 @@ class IntegrationClient {
           'Authorization': `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json'
         },
+        timeout: this.timeout,
         data
       });
       return { success: true, data: response.data };
