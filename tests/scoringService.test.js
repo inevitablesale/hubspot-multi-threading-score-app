@@ -29,9 +29,10 @@ describe('Scoring Service', () => {
     test('prioritizes meetings over calls over emails', () => {
       const meetingScore = calculateContactEngagementScore({ emails: 0, meetings: 2, calls: 0 });
       const callScore = calculateContactEngagementScore({ emails: 0, meetings: 0, calls: 2 });
-      const emailScore = calculateContactEngagementScore({ emails: 0, meetings: 0, calls: 2 });
+      const emailScore = calculateContactEngagementScore({ emails: 2, meetings: 0, calls: 0 });
       
       expect(meetingScore).toBeGreaterThanOrEqual(callScore);
+      expect(callScore).toBeGreaterThanOrEqual(emailScore);
     });
   });
 
